@@ -1,83 +1,125 @@
 import os
 import datetime
 
-folder_path = "/path/to/your/folder"
+# Hardcoded folder location
+FOLDER_LOCATION = "/path/to/your/folder"
 
-def get_file_info(file_path):
-    file_name = os.path.basename(file_path)
-    file_extension = os.path.splitext(file_name)[1]
-    created_time = datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-    updated_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-    return file_name, file_extension, created_time, updated_time
+# Dictionary to store file information
+file_info = {}
 
-def get_image_info(file_path):
-    import PIL.Image
-    with PIL.Image.open(file_path) as img:
-        width, height = img.size
-    return f"{width}x{height}"
+def commit_snapshot():
+    """Update snapshot time to current time."""
+    snapshot_time = datetime.datetime.now()
+    print("Snapshot updated to:", snapshot_time)
 
-def get_text_info(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        line_count = len(lines)
-        word_count = sum(len(line.split()) for line in lines)
-        char_count = sum(len(line) for line in lines)
-    return line_count, word_count, char_count
+def get_file_info(filename):
+    """Print general information about the file."""
+    if filename not in file_info:
+        print("File not found.")
+        return
+    
+    info = file_info[filename]
+    print("Filename:", filename)
+    print("Extension:", info['extension'])
+    print("Created:", info['created'])
+    print("Updated:", info['updated'])
 
-def get_program_info(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        line_count = len(lines)
-        class_count = sum(1 for line in lines if line.strip().startswith("class "))
-        method_count = sum(1 for line in lines if line.strip().startswith("def "))
-    return line_count, class_count, method_count
+    if info['extension'] in ['.png', '.jpg']:
+        print("Image Size:", info['image_size'])
+    elif info['extension'] == '.txt':
+        print("Line Count:", info['line_count'])
+        print("Word Count:", info['word_count'])
+        print("Character Count:", info['char_count'])
+    elif info['extension'] in ['.py', '.java']:
+        print("Line Count:", info['line_count'])
+        print("Class Count:", info['class_count'])
+        print("Method Count:", info['method_count'])
 
-def main():
-    while True:
-        action = input("Enter action (commit/info <filename>/status): ").split()
+def get_all_files_info():
+    """Print information about all files."""
+    for filename, info in file_info.items():
+        print("Filename:", filename)
+        print("Extension:", info['extension'])
+        print("Created:", info['created'])
+        print("Updated:", info['updated'])
 
-        if action[0] == "commit":
-            snapshot_time = datetime.datetime.now()
-            print(f"Snapshot time updated to: {snapshot_time}")
+        if info['extension'] in ['.png', '.jpg']:
+            print("Image Size:", info['image_size'])
+        elif info['extension'] == '.txt':
+            print("Line Count:", info['line_count'])
+            print("Word Count:", info['word_count'])
+            print("Character Count:", info['char_count'])
+        elif info['extension'] in ['.py', '.java']:
+            print("Line Count:", info['line_count'])
+            print("Class Count:", info['class_count'])
+            print("Method Count:", info['method_count'])
+        print()
 
-        elif action[0] == "info":
-            if len(action) != 2:
-                print("Invalid command. Please provide filename.")
-                continue
-            file_name = action[1]
-            file_path = os.path.join(folder_path, file_name)
-            if not os.path.exists(file_path):
-                print("File not found.")
-                continue
-            file_info = get_file_info(file_path)
-            file_extension = file_info[1]
-            if file_extension in ['.png', '.jpg']:
-                print(f"Image Size: {get_image_info(file_path)}")
-            elif file_extension == '.txt':
-                text_info = get_text_info(file_path)
-                print(f"Line count: {text_info[0]}")
-                print(f"Word count: {text_info[1]}")
-                print(f"Character count: {text_info[2]}")
-            elif file_extension in ['.py', '.java']:
-                program_info = get_program_info(file_path)
-                print(f"Line count: {program_info[0]}")
-                print(f"Class count: {program_info[1]}")
-                print(f"Method count: {program_info[2]}")
-            else:
-                print("Unknown file type.")
+def update_file_info():
+    """Update information about all files in the folder."""
+    global file_info
+    file_info = {}
+    for filename in os.listdir(FOLDER_LOCATION):
+        filepath = os.path.join(FOLDER_LOCATION, filename)
+        if os.path.isfile(filepath):
+            file_stats = os.stat(filepath)
+            created_time = datetime.datetime.fromtimestamp(file_stats.st_ctime)
+            updated_time = datetime.datetime.fromtimestamp(file_stats.st_mtime)
+            extension = os.path.splitext(filename)[1]
 
-        elif action[0] == "status":
-            snapshot_time = datetime.datetime.now()
-            print(f"Snapshot time: {snapshot_time}")
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename)
-                if os.path.isfile(file_path):
-                    file_info = get_file_info(file_path)
-                    if file_info[3] > snapshot_time:
-                        print(f"{file_info[0]} has been changed since snapshot time.")
+            if extension in ['.png', '.jpg']:
+                image_size = f"{file_stats.st_size} bytes"
+            elif extension == '.txt':
+                with open(filepath, 'r') as file:
+                    line_count = sum(1 for line in file)
+                    file.seek(0)
+                    word_count = len(file.read().split())
+                    file.seek(0)
+                    char_count = len(file.read())
+            elif extension in ['.py', '.java']:
+                with open(filepath, 'r') as file:
+                    line_count = sum(1 for line in file)
+                    file.seek(0)
+                    class_count = 0
+                    method_count = 0
+                    for line in file:
+                        if line.strip().startswith('class '):
+                            class_count += 1
+                        elif line.strip().startswith('def '):
+                            method_count += 1
+            
+            file_info[filename] = {
+                'extension': extension,
+                'created': created_time,
+                'updated': updated_time,
+                'image_size': image_size if extension in ['.png', '.jpg'] else None,
+                'line_count': line_count if extension in ['.txt', '.py', '.java'] else None,
+                'word_count': word_count if extension == '.txt' else None,
+                'char_count': char_count if extension == '.txt' else None,
+                'class_count': class_count if extension in ['.py', '.java'] else None,
+                'method_count': method_count if extension in ['.py', '.java'] else None
+            }
 
-        else:
-            print("Invalid action.")
+def status():
+    """Show changes in files since the last snapshot."""
+    for filename, info in file_info.items():
+        updated_since_snapshot = info['updated'] > snapshot_time
+        print(f"{filename} {'changed' if updated_since_snapshot else 'not changed'} since last snapshot")
 
-if __name__ == "__main__":
-    main()
+# Initial update of file information
+update_file_info()
+
+while True:
+    command = input("Enter command (commit/info <filename>/all files/status): ").strip()
+    if command.startswith("info"):
+        filename = command.split(maxsplit=1)[1]
+        get_file_info(filename)
+    elif command == "all files":
+        get_all_files_info()
+    elif command == "commit":
+        commit_snapshot()
+        update_file_info()
+    elif command == "status":
+        status()
+    else:
+        print("Invalid command.")
